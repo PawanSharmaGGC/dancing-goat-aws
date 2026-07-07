@@ -1,10 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
     <RootNamespace>DancingGoat</RootNamespace>
     <UserSecretsId>79c858af-5444-4954-8d08-6592a961e82a</UserSecretsId>
     <SeparatedAdmin Condition="'$(SeparatedAdmin)' == ''">false</SeparatedAdmin>
     <NoWarn>$(NoWarn);KXE0004;KXE0006</NoWarn>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>.</DockerfileContext>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="App_Data\CMSModules\WebFarm\webfarm.sync" />
@@ -27,5 +29,6 @@
     <PackageReference Include="kentico.xperience.imageprocessing" Version="31.6.1" />
     <PackageReference Include="kentico.xperience.mjml" Version="31.6.1" />
     <PackageReference Include="kentico.xperience.webapp" Version="31.6.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
   </ItemGroup>
 </Project>

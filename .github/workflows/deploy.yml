@@ -1,0 +1,210 @@
+name: Deploy Dancing Goat to AWS
+
+# Single-branch pipeline: every push to main goes through
+# plan -> manual approval -> apply -> build/push image -> deploy to ECS -> Xperience CD sync
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC auth to AWS
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: dancing-goat
+  ECS_CLUSTER: dancing-goat-cluster
+  ECS_SERVICE: dancing-goat-service
+  CONTAINER_NAME: dancing-goat-app
+  # Update this ARN after the first `terraform apply` if it ever changes
+  AWS_ROLE_ARN: arn:aws:iam::533266976950:role/github-actions-deploy-dancing-goat
+
+jobs:
+  # ---------------------------------------------------------------------
+  # JOB 1: Terraform plan only. No infrastructure changes happen here.
+  # ---------------------------------------------------------------------
+  terraform-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan -var="db_password=${{ secrets.DB_PASSWORD }}"
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+          retention-days: 1
+
+  # ---------------------------------------------------------------------
+  # JOB 2: Manual approval gate, then apply the plan from Job 1 exactly
+  # as reviewed - nothing is recalculated here.
+  # ---------------------------------------------------------------------
+  approve-and-apply:
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    environment: aws-deploy   # <-- pauses here for required-reviewer approval
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply tfplan
+
+  # ---------------------------------------------------------------------
+  # JOB 3: Build the Docker image and push it to ECR, tagged with the
+  # commit SHA (never :latest, so every deploy is traceable to a commit).
+  # ---------------------------------------------------------------------
+  build-and-push:
+    needs: approve-and-apply
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build, tag, and push image
+        id: build-image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------
+  # JOB 4: Xperience Continuous Deployment sync.
+  #
+  # This applies structural/content-type changes (page types, forms,
+  # modules) that were serialized into the repo's CIRepository folder
+  # by a developer running the CI "store" command locally. It does NOT
+  # touch actual page/content data edited by content editors - only
+  # structure and configuration.
+  #
+  # This runs as a one-off ECS Fargate task (using the same image, VPC,
+  # and DB connectivity as the live service) rather than from the
+  # GitHub runner directly, since RDS is private and only reachable
+  # from inside the VPC.
+  #
+  # IMPORTANT: verify the exact CLI command/flag for your Xperience by
+  # Kentico version against the official docs before relying on this in
+  # a real pipeline - confirm this against docs.xperience.io for
+  # version 31.6.1 specifically, as CD command syntax has changed
+  # across versions.
+  # ---------------------------------------------------------------------
+  xperience-cd-sync:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get current task definition and networking details
+        id: task-info
+        run: |
+          TASK_DEF_ARN=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].taskDefinition" --output text)
+          SUBNETS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.subnets" --output json)
+          SGS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json)
+          echo "task_def=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+          echo "subnets=$SUBNETS" >> "$GITHUB_OUTPUT"
+          echo "sgs=$SGS" >> "$GITHUB_OUTPUT"
+
+      - name: Run CD restore as a one-off ECS task
+        run: |
+          aws ecs run-task \
+            --cluster $ECS_CLUSTER \
+            --task-definition "${{ steps.task-info.outputs.task_def }}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=${{ steps.task-info.outputs.subnets }},securityGroups=${{ steps.task-info.outputs.sgs }},assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"'"$CONTAINER_NAME"'","command":["dotnet","'"$CONTAINER_NAME"'.dll","--kxp-cd-restore"]}]}' \
+            --query "tasks[0].taskArn" --output text > task_arn.txt
+          echo "Started CD restore task: $(cat task_arn.txt)"
+
+      - name: Wait for the CD restore task to finish
+        run: |
+          TASK_ARN=$(cat task_arn.txt)
+          aws ecs wait tasks-stopped --cluster $ECS_CLUSTER --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster $ECS_CLUSTER --tasks "$TASK_ARN" --query "tasks[0].containers[0].exitCode" --output text)
+          echo "CD restore task exit code: $EXIT_CODE"
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "CD restore failed - check CloudWatch logs under /ecs/dancing-goat"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------
+  # JOB 5: Update the live ECS service with the newly built image.
+  # Runs after the CD sync so structural DB changes are in place before
+  # the new app code (which may depend on them) goes live.
+  # ---------------------------------------------------------------------
+  deploy-to-ecs:
+    needs: [build-and-push, xperience-cd-sync]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Fetch current task definition as a base
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition dancing-goat-task \
+            --query "taskDefinition" > task-definition.json
+
+      - name: Render new task definition with the freshly built image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ needs.build-and-push.outputs.image }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE }}
+          wait-for-service-stability: true

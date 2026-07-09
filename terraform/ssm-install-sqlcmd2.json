@@ -1,0 +1,7 @@
+{
+  "commands": [
+    "curl https://packages.microsoft.com/config/rhel/9/prod.repo | sudo tee /etc/yum.repos.d/msprod.repo",
+    "sudo ACCEPT_EULA=Y yum install -y mssql-tools18 unixODBC-devel",
+    "ls -la /opt/mssql-tools18/bin/"
+  ]
+}

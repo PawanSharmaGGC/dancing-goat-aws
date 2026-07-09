@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "timeout 5 bash -c '</dev/tcp/dancing-goat-db.c1i0oc000hzb.ap-south-1.rds.amazonaws.com/1433' && echo CONNECTED || echo FAILED"
+  ]
+}

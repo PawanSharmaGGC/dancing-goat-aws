@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "/opt/mssql-tools18/bin/sqlcmd -S 10.20.11.245 -U app_user -P Mridul_8075 -C -Q \"SET NOCOUNT ON; EXEC msdb.dbo.rds_task_status @db_name='XbyKDG6July';\" -W -s \",\""
+  ]
+}

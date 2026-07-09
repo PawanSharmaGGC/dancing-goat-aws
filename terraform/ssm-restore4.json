@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "/opt/mssql-tools18/bin/sqlcmd -S 10.20.11.84 -U app_user -P Mridul_8075 -C -Q \"EXEC msdb.dbo.rds_restore_database @restore_db_name='XbyKDG6July', @s3_arn_to_restore_from='arn:aws:s3:::dancing-goat-migration-533266976950/XbyKDG6July.bak';\""
+  ]
+}

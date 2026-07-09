@@ -126,3 +126,18 @@ resource "aws_security_group" "db" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+# Self-referencing rule: allows anything else that's a member of sg-db
+# (e.g. the temporary SSM bastion instance) to reach RDS on 1433.
+# This is managed here in Terraform specifically so it survives every
+# future `terraform apply` instead of being wiped out as "drift" the
+# way our earlier manually-added CLI rule was.
+resource "aws_security_group_rule" "db_self_reference" {
+  type                     = "ingress"
+  from_port                = 1433
+  to_port                  = 1433
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.db.id
+  source_security_group_id = aws_security_group.db.id
+  description               = "Allow bastion (or anything else in sg-db) to reach RDS"
+}

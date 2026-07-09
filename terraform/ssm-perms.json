@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "/opt/mssql-tools18/bin/sqlcmd -S 10.20.11.245 -U app_user -P Mridul_8075 -C -Q \"USE XbyKDG6July; IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = 'app_user') BEGIN CREATE USER app_user FOR LOGIN app_user; END; ALTER ROLE db_owner ADD MEMBER app_user; SELECT 'done' as result;\""
+  ]
+}

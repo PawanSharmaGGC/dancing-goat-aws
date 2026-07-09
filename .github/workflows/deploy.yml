@@ -19,6 +19,7 @@ env:
   CONTAINER_NAME: dancing-goat-app
   # Update this ARN after the first `terraform apply` if it ever changes
   AWS_ROLE_ARN: arn:aws:iam::533266976950:role/github-actions-deploy-dancing-goat
+  APP_DLL: XbyK-DG-6July.dll
 
 jobs:
   # ---------------------------------------------------------------------
@@ -159,7 +160,7 @@ jobs:
             --task-definition "${{ steps.task-info.outputs.task_def }}" \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=${{ steps.task-info.outputs.subnets }},securityGroups=${{ steps.task-info.outputs.sgs }},assignPublicIp=DISABLED}" \
-            --overrides '{"containerOverrides":[{"name":"'"$CONTAINER_NAME"'","command":["dotnet","'"$CONTAINER_NAME"'.dll","--kxp-cd-restore"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"'"$CONTAINER_NAME"'","command":["dotnet","'"$APP_DLL"'","--kxp-cd-restore"]}]}' \
             --query "tasks[0].taskArn" --output text > task_arn.txt
           echo "Started CD restore task: $(cat task_arn.txt)"
 

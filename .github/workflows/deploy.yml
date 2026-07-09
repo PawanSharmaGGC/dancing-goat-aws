@@ -146,8 +146,8 @@ jobs:
         id: task-info
         run: |
           TASK_DEF_ARN=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].taskDefinition" --output text)
-          SUBNETS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.subnets" --output json)
-          SGS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json)
+          SUBNETS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.subnets" --output json | jq -c .)
+          SGS=$(aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query "services[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json | jq -c .)
           echo "task_def=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
           echo "subnets=$SUBNETS" >> "$GITHUB_OUTPUT"
           echo "sgs=$SGS" >> "$GITHUB_OUTPUT"

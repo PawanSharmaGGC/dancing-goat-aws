@@ -160,7 +160,7 @@ jobs:
             --task-definition "${{ steps.task-info.outputs.task_def }}" \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=${{ steps.task-info.outputs.subnets }},securityGroups=${{ steps.task-info.outputs.sgs }},assignPublicIp=DISABLED}" \
-            --overrides '{"containerOverrides":[{"name":"'"$CONTAINER_NAME"'","command":["dotnet","'"$APP_DLL"'","--kxp-cd-restore"]}]}' \
+            --overrides '{"containerOverrides":[{"name":"'"$CONTAINER_NAME"'","command":["dotnet","'"$APP_DLL"'","--kxp-cd-restore","--repository-path","App_Data/CDRepository"]}]}' \
             --query "tasks[0].taskArn" --output text > task_arn.txt
           echo "Started CD restore task: $(cat task_arn.txt)"
 

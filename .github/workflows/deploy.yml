@@ -181,7 +181,7 @@ jobs:
   # the new app code (which may depend on them) goes live.
   # ---------------------------------------------------------------------
   deploy-to-ecs:
-    needs: [build-and-push, xperience-cd-sync]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     steps:
       - uses: aws-actions/configure-aws-credentials@v4

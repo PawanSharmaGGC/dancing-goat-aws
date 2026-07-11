@@ -14,7 +14,7 @@ resource "aws_lb_target_group" "app" {
   target_type = "ip"
 
   health_check {
-    path                = "/"
+    path                = "/admin"
     healthy_threshold   = 2
     unhealthy_threshold = 5
     timeout             = 10

@@ -9,6 +9,7 @@ resource "aws_db_instance" "main" {
   engine_version          = "16.00.4255.1.v1"
   instance_class          = "db.t3.micro"
   allocated_storage       = 20
+  storage_type            = "gp3"
   username                = var.db_username
   password                = var.db_password
   db_subnet_group_name    = aws_db_subnet_group.main.name

@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<cms.taxonomy>
+  <TaxonomyGUID>c6ea8ba9-752c-42f0-9602-a7574f021ee8</TaxonomyGUID>
+  <TaxonomyMetadata>
+    <![CDATA[{"Translations":{"fc939370-8f94-4fc9-8cc4-bfdef6ab748c":{"Title":null}}}]]>
+  </TaxonomyMetadata>
+  <TaxonomyName>Test</TaxonomyName>
+  <TaxonomyTitle>Test</TaxonomyTitle>
+</cms.taxonomy>

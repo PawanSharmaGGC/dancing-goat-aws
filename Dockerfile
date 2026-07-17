@@ -19,6 +19,18 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./XbyK-DG-6July.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
+
 WORKDIR /app
+
 COPY --from=publish /app/publish .
+
+# Switch to root temporarily
+USER root
+
+# Give ownership to the app user
+RUN chown -R $APP_UID:$APP_UID /app
+
+# Switch back to the app user
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "XbyK-DG-6July.dll"]

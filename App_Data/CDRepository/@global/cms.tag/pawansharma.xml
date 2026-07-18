@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<cms.tag>
+  <TagGUID>6b103b6f-9993-4306-91a4-e0fb2371cbb1</TagGUID>
+  <TagMetadata>
+    <![CDATA[{"Translations":{"fc939370-8f94-4fc9-8cc4-bfdef6ab748c":{"Title":null,"Description":null}}}]]>
+  </TagMetadata>
+  <TagName>PawanSharma</TagName>
+  <TagOrder>1</TagOrder>
+  <TagTaxonomyID>
+    <CodeName>18July</CodeName>
+    <GUID>46ca7ff8-5b3e-46dd-a82e-3ba7d738ea11</GUID>
+    <ObjectType>cms.taxonomy</ObjectType>
+  </TagTaxonomyID>
+  <TagTitle>Pawan Sharma</TagTitle>
+</cms.tag>
